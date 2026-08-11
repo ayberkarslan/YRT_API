@@ -15,40 +15,42 @@
 
 static I2C_HandleTypeDef *daq_i2c;
 
-HAL_StatusTypeDef YRT_DAQ_API_Init_Sensors(I2C_HandleTypeDef *hi2c_ptr) {
-    if (hi2c_ptr == NULL) return HAL_ERROR;
+YRT_Status_t YRT_DAQ_API_Init_Sensors(I2C_HandleTypeDef *hi2c_ptr) {
+    if (hi2c_ptr == NULL) return YRT_ERROR;
     daq_i2c = hi2c_ptr;
+    
+    /* İçeride HAL fonksiyonlarını kullanıyoruz ama dışarıya YRT_OK / YRT_ERROR dönüyoruz */
     if (ADS1115_Init(daq_i2c, ADS1115_DATA_RATE_128, ADS1115_PGA_TWO) != HAL_OK) {
-        return HAL_ERROR;
+        return YRT_ERROR;
     }
-    return HAL_OK;
+    return YRT_OK;
 }
 
-HAL_StatusTypeDef YRT_DAQ_API_Read_PT1_Pressure(float *pressure) {
+YRT_Status_t YRT_DAQ_API_Read_PT1_Pressure(float *pressure) {
     float raw_voltage = 0.0f;
     if (ADS1115_readSingleEnded(ADS1115_MUX_AIN1, &raw_voltage) == HAL_OK) {
         *pressure = (raw_voltage * PT_VOLTAGE_TO_BAR_COEF);
-        return HAL_OK;
+        return YRT_OK;
     }
-    return HAL_ERROR;
+    return YRT_ERROR;
 }
 
-HAL_StatusTypeDef YRT_DAQ_API_Read_PT2_Pressure(float *pressure) {
+YRT_Status_t YRT_DAQ_API_Read_PT2_Pressure(float *pressure) {
     float raw_voltage = 0.0f;
     if (ADS1115_readSingleEnded(ADS1115_MUX_AIN2, &raw_voltage) == HAL_OK) {
         *pressure = (raw_voltage * PT_VOLTAGE_TO_BAR_COEF);
-        return HAL_OK;
+        return YRT_OK;
     }
-    return HAL_ERROR;
+    return YRT_ERROR;
 }
 
-HAL_StatusTypeDef YRT_DAQ_API_Read_PT3_Pressure(float *pressure) {
+YRT_Status_t YRT_DAQ_API_Read_PT3_Pressure(float *pressure) {
     float raw_voltage = 0.0f;
     if (ADS1115_readSingleEnded(ADS1115_MUX_AIN3, &raw_voltage) == HAL_OK) {
         *pressure = (raw_voltage * PT_VOLTAGE_TO_BAR_COEF);
-        return HAL_OK;
+        return YRT_OK;
     }
-    return HAL_ERROR;
+    return YRT_ERROR;
 }
 
 #endif /* YRT_USE_SENSOR_MODULE */
@@ -95,35 +97,35 @@ static FATFS yrt_fs;
 static FIL yrt_file;
 static FRESULT yrt_fres;
 
-HAL_StatusTypeDef YRT_SD_API_Init(void) {
+YRT_Status_t YRT_SD_API_Init(void) {
     yrt_fres = f_mount(&yrt_fs, "", 1);
-    if (yrt_fres != FR_OK) return HAL_ERROR;
+    if (yrt_fres != FR_OK) return YRT_ERROR;
 
     yrt_fres = f_open(&yrt_file, YRT_LOG_FILENAME, FA_OPEN_APPEND | FA_WRITE);
-    if (yrt_fres != FR_OK) return HAL_ERROR;
+    if (yrt_fres != FR_OK) return YRT_ERROR;
 
     char header[] = "ZAMAN(ms),PT1(Bar),PT2(Bar),PT3(Bar)\n";
     UINT bytesWrote;
     yrt_fres = f_write(&yrt_file, header, strlen(header), &bytesWrote);
     f_close(&yrt_file);
 
-    if (yrt_fres != FR_OK || bytesWrote == 0) return HAL_ERROR;
-    return HAL_OK;
+    if (yrt_fres != FR_OK || bytesWrote == 0) return YRT_ERROR;
+    return YRT_OK;
 }
 
-HAL_StatusTypeDef YRT_SD_API_LogData(uint32_t timestamp_ms, float pt1, float pt2, float pt3) {
+YRT_Status_t YRT_SD_API_LogData(uint32_t timestamp_ms, float pt1, float pt2, float pt3) {
     char log_buffer[100];
     UINT bytesWrote;
     snprintf(log_buffer, sizeof(log_buffer), "%lu,%.2f,%.2f,%.2f\n", timestamp_ms, pt1, pt2, pt3);
 
     yrt_fres = f_open(&yrt_file, YRT_LOG_FILENAME, FA_OPEN_APPEND | FA_WRITE);
-    if (yrt_fres != FR_OK) return HAL_ERROR;
+    if (yrt_fres != FR_OK) return YRT_ERROR;
 
     yrt_fres = f_write(&yrt_file, log_buffer, strlen(log_buffer), &bytesWrote);
     f_close(&yrt_file);
 
-    if (yrt_fres != FR_OK || bytesWrote == 0) return HAL_ERROR;
-    return HAL_OK;
+    if (yrt_fres != FR_OK || bytesWrote == 0) return YRT_ERROR;
+    return YRT_OK;
 }
 
 void YRT_SD_API_DeInit(void) {
@@ -142,8 +144,8 @@ static CAN_HandleTypeDef *daq_can;
 static CAN_TxHeaderTypeDef txHeader;
 static uint32_t txMailbox;
 
-HAL_StatusTypeDef YRT_CAN_API_Init(CAN_HandleTypeDef *hcan_ptr) {
-    if (hcan_ptr == NULL) return HAL_ERROR;
+YRT_Status_t YRT_CAN_API_Init(CAN_HandleTypeDef *hcan_ptr) {
+    if (hcan_ptr == NULL) return YRT_ERROR;
     daq_can = hcan_ptr;
 
     /* Donanımsal CAN Filtresini Ayarla */
@@ -159,10 +161,10 @@ HAL_StatusTypeDef YRT_CAN_API_Init(CAN_HandleTypeDef *hcan_ptr) {
     canFilterConfig.FilterActivation = ENABLE;
     canFilterConfig.SlaveStartFilterBank = 14;
 
-    if (HAL_CAN_ConfigFilter(daq_can, &canFilterConfig) != HAL_OK) return HAL_ERROR;
+    if (HAL_CAN_ConfigFilter(daq_can, &canFilterConfig) != HAL_OK) return YRT_ERROR;
 
     /* CAN Modülünü Başlat */
-    if (HAL_CAN_Start(daq_can) != HAL_OK) return HAL_ERROR;
+    if (HAL_CAN_Start(daq_can) != HAL_OK) return YRT_ERROR;
 
     /* Mesaj Başlığını Ayarla (Supervisor ID: 0x100) */
     txHeader.StdId = 0x100;
@@ -171,10 +173,10 @@ HAL_StatusTypeDef YRT_CAN_API_Init(CAN_HandleTypeDef *hcan_ptr) {
     txHeader.RTR = CAN_RTR_DATA;
     txHeader.DLC = 6; /* Gönderilecek Veri Uzunluğu (6 Byte) */
 
-    return HAL_OK;
+    return YRT_OK;
 }
 
-HAL_StatusTypeDef YRT_CAN_API_SendTelemetry(float pt1, float pt2, float pt3) {
+YRT_Status_t YRT_CAN_API_SendTelemetry(float pt1, float pt2, float pt3) {
     uint8_t payload[8] = {0};
 
     /* Verileri virgülden kurtarmak için 100 ile çarpıp tam sayıya çeviriyoruz (Örn: 15.42 Bar -> 1542) */
@@ -194,9 +196,9 @@ HAL_StatusTypeDef YRT_CAN_API_SendTelemetry(float pt1, float pt2, float pt3) {
 
     /* Veriyi hatta bas */
     if (HAL_CAN_AddTxMessage(daq_can, &txHeader, payload, &txMailbox) != HAL_OK) {
-        return HAL_ERROR;
+        return YRT_ERROR;
     }
-    return HAL_OK;
+    return YRT_OK;
 }
 
 #endif /* YRT_USE_CAN_MODULE */
@@ -205,11 +207,11 @@ HAL_StatusTypeDef YRT_CAN_API_SendTelemetry(float pt1, float pt2, float pt3) {
 /* ==================================================================== */
 /* GENEL SİSTEM BAŞLATMA FONKSİYONU                                     */
 /* ==================================================================== */
-HAL_StatusTypeDef YRT_DAQ_API_Init_System(I2C_HandleTypeDef *hi2c_ptr, CAN_HandleTypeDef *hcan_ptr) {
-    HAL_StatusTypeDef status = HAL_OK;
+YRT_Status_t YRT_DAQ_API_Init_System(I2C_HandleTypeDef *hi2c_ptr, CAN_HandleTypeDef *hcan_ptr) {
+    YRT_Status_t status = YRT_OK;
 
     #if YRT_USE_SENSOR_MODULE == 1
-    if (YRT_DAQ_API_Init_Sensors(hi2c_ptr) != HAL_OK) status = HAL_ERROR;
+    if (YRT_DAQ_API_Init_Sensors(hi2c_ptr) != YRT_OK) status = YRT_ERROR;
     #endif
 
     #if YRT_USE_VALVE_MODULE == 1
@@ -217,11 +219,11 @@ HAL_StatusTypeDef YRT_DAQ_API_Init_System(I2C_HandleTypeDef *hi2c_ptr, CAN_Handl
     #endif
 
     #if YRT_USE_SDCARD_MODULE == 1
-    if (YRT_SD_API_Init() != HAL_OK) status = HAL_ERROR;
+    if (YRT_SD_API_Init() != YRT_OK) status = YRT_ERROR;
     #endif
 
     #if YRT_USE_CAN_MODULE == 1
-    if (YRT_CAN_API_Init(hcan_ptr) != HAL_OK) status = HAL_ERROR;
+    if (YRT_CAN_API_Init(hcan_ptr) != YRT_OK) status = YRT_ERROR;
     #endif
 
     return status;
