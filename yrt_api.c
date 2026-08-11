@@ -39,15 +39,15 @@
 
 
     // LoRa transmit
-    uint8_t yrt_LoRa_Transmit(const uint8_t *data, uint8_t length, uint16_t timeout){
+    YRT_Status_t yrt_LoRa_Transmit(const uint8_t *data, uint8_t length, uint16_t timeout){
 
-    LoRa_transmit(&my_lora, (uint8_t*)data, length, timeout);
+    return LoRa_transmit(&my_lora, (uint8_t*)data, length, timeout);
 
     }
 
 
     // LoRa receive
-    uint8_t yrt_LoRa_Receive(uint8_t *send_data, uint8_t length, uint16_t timeout){
+    YRT_Status_t yrt_LoRa_Receive(uint8_t *send_data, uint8_t length, uint16_t timeout){
 
         LoRa_startReceiving(&my_lora);
         //uint8_t LoRa_receive(LoRa* _LoRa, uint8_t* data, uint8_t length);
@@ -69,37 +69,101 @@
 
 
 //BARO
-#if YRT_BARO_MS5611_SELECTED
-
-
+    #if YRT_IS_BARO_ENABLED
     
+        #if YRT_BARO_MS5611_SELECTED
+            
+            static MS5611_t ms5611_dev; 
+            static I2C_HandleTypeDef *baro_i2c; 
+    
+          
+            static uint8_t ms5611_i2c_write(uint8_t addr, uint8_t *data, uint16_t len) {
+                return HAL_I2C_Master_Transmit(baro_i2c, addr, data, len, 100);
+            }
         
+            
+            static uint8_t ms5611_i2c_read(uint8_t addr, uint8_t *data, uint16_t len) {
+                return HAL_I2C_Master_Receive(baro_i2c, addr, data, len, 100);
+            }
+
+        #elif YRT_BARO_BMP280_SELECTED
+            // static BMP280_t bmp280_dev  mesela
+        #endif
     
-uint8_t YRT_Baro_Init(const yrt_Baro_conf_t *config){
+    
 
-    #if YRT_BARO_MS5611_SELECTED
-    //MS5611
-    MS5611_Init(&hi2c1, &ucus_sensoru);
-
-    #elif YRT_BARO_BMP280_SELECTED
-    //BMP280
-
-    #else
-
-    //Farklı sensör varsa burayı doldur
-    #endif
-
-}
-
-uint8_t YRT_Baro_Init(const  yrt_Baro_Config_ *config);
-
-uint8_t YRT_Baro_Read_All(yrt_Baro_Data_t *out_data);
-
-float YRT_Baro_Get_Altitude(void);
+        // evrensel init fonksiyonu
+        YRT_Status_t YRT_Baro_Init(const yrt_Baro_conf_t *config){
+    
+            #if YRT_BARO_MS5611_SELECTED
+              
+                baro_i2c = (I2C_HandleTypeDef *)config->hi2c;
+                
+             
+                ms5611_dev.i2c_send = ms5611_i2c_write;
+                ms5611_dev.i2c_receive = ms5611_i2c_read;
+                ms5611_dev.delay_ms = yrt_delay; 
+                
+                
+                if(MS5611_Init(&ms5611_dev) == YRT_OK) return YRT_OK;
+                return YRT_ERROR;
+    
 
 
+            #elif YRT_BARO_BMP280_SELECTED
+                // BMP280 kodları buraya
+                return YRT_OK;
+            #else
+                return YRT_ERROR;
+            #endif
+        }
 
-#endif
+
+
+        
+
+
+        YRT_Status_t YRT_Baro_Read_All(yrt_Baro_Data_t *out_data) {
+
+            #if YRT_BARO_MS5611_SELECTED
+                
+                if (MS5611_ReadRawData(&ms5611_dev) == YRT_OK) {
+                    MS5611_Calculate(&ms5611_dev);
+
+                    out_data->altitude_m      = ms5611_dev.altitude;
+                    out_data->pressure_pa     = ms5611_dev.pressure;
+                    out_data->temperature_c   = ms5611_dev.temperature;
+                    out_data->raw_pressure    = ms5611_dev.D1;
+                    out_data->raw_temperature = ms5611_dev.D2;
+                    return YRT_OK;
+                }
+                return YRT_ERROR_I2C;
+                
+
+
+
+            #elif YRT_BARO_BMP280_SELECTED
+		// BMP280 okuma işlemi
+                return YRT_OK;
+            #else
+                return YRT_ERROR;
+            #endif
+        }
+
+
+
+        float YRT_Baro_Get_Altitude(void) {
+            yrt_Baro_Data_t temp_data;
+            if (YRT_Baro_Read_All(&temp_data) == YRT_OK) {
+                return temp_data.altitude_m;
+            }
+            return 0.0f; // Hata
+        }
+
+    #endif // YRT_IS_BARO_ENABLED
+
+
+
 
 
 
@@ -117,12 +181,12 @@ float YRT_Baro_Get_Altitude(void);
 
         
     
-uint8_t YRT_Baro_Init(const yrt_Baro_conf_t *config){
+YRT_Status_t YRT_IMU_Init(const yrt_Baro_conf_t *config){
 
    #if YRT_IMU_BNO055_SELECTED
    //BNO055
    
-   BNO055_Init(&hi2c1, &ucus_sensoru);
+   //BNO055_Init(&hi2c1, &ucus_sensoru);
 
   
     #elif   YRT_IMU_MPU6050_SELECTED
@@ -144,6 +208,33 @@ uint8_t YRT_Baro_Init(const yrt_Baro_conf_t *config){
 
 
 float YRT_Baro_ReadAltitude(void);
+
+
+
+
+
+ uint32_t YRT_Get_Time(void) {
+        #if YRT_IS_RTOS_ENABLED
+            return osKernelGetTickCount();
+        #else
+            return HAL_GetTick();
+        #endif
+    }
+
+
+    YRT_Status_t YRT_Delay(uint32_t period) {
+        #if YRT_IS_RTOS_ENABLED
+            osDelay(period);
+        #else
+            HAL_Delay(period);
+        #endif
+        return YRT_OK;
+    }
+
+
+
+
+
 
 #endif
 
