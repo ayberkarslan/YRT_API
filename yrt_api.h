@@ -7,6 +7,18 @@
 
 
 
+
+
+uint32_t YRT_Get_Time(void);
+YRT_Status_t YRT_Delay(uint32_t period);
+
+
+
+
+
+//FREERTOS
+#define YRT_IS_FREERTOS_ENABLED YRT_ENABLED
+
 //LORA
 #define YRT_IS_LORA_ENABLED YRT_ENABLED
 
@@ -23,6 +35,27 @@
 
 
 
+    typedef enum {
+        YRT_OK = 0,            // her şey relax
+        YRT_ERROR,             // genel
+        YRT_ERROR_TIMEOUT,     
+        YRT_ERROR_I2C,         // i2c hat hatası veya cevap yok
+        YRT_ERROR_SPI,         // spi
+        YRT_ERROR_NOT_READY  
+    } YRT_Status_t;
+
+
+
+
+
+
+
+//FREERTOS
+#if IS_FREERTOS_ENABLED
+
+    include "cmsis_os.h"
+
+#endif
 
 
 
@@ -120,9 +153,9 @@ typedef struct {
 
 
 
-uint8_t YRT_Baro_Init(const  yrt_Baro_Config_ *config);
+YRT_Status_t YRT_Baro_Init(const  yrt_Baro_Config_ *config);
 
-uint8_t YRT_Baro_Read_All(yrt_Baro_Data_t *out_data);
+YRT_Status_t YRT_Baro_Read_All(yrt_Baro_Data_t *out_data);
 
 float YRT_Baro_Get_Altitude(void);
 
@@ -174,13 +207,13 @@ float YRT_Baro_Get_Altitude(void);
     
 //lora prototypes
 
-uint8_t yrt_LoRa_init(const yrt_LoRa_conf_t *config);
+YRT_Status_t yrt_LoRa_init(const yrt_LoRa_conf_t *config);
 
-uint8_t yrt_LoRa_Transmit(const uint8_t *data, uint8_t length, uint16_t timeout);
+YRT_Status_t yrt_LoRa_Transmit(const uint8_t *data, uint8_t length, uint16_t timeout);
 
-uint8_t yrt_LoRa_Receive(uint8_t *send_data, uint8_t length, uint16_t timeout);
+YRT_Status_t yrt_LoRa_Receive(uint8_t *send_data, uint8_t length, uint16_t timeout);
 
-uint8_t yrt_delay(uint8_t period);
+YRT_Status_t yrt_delay(uint8_t period);
 
 
 #endif
