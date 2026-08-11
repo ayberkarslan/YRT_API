@@ -5,6 +5,7 @@
 //LORA
 #if YRT_IS_LORA_ENABLED
 
+
     static LoRa my_lora;
 
 
@@ -70,12 +71,8 @@
 //BARO
 #if YRT_BARO_MS5611_SELECTED
 
-        typedef struct {
-            void *hi2c;
 
-        } yrt_Baro_conf_t;
     
-
         
     
 uint8_t YRT_Baro_Init(const yrt_Baro_conf_t *config){
@@ -94,10 +91,13 @@ uint8_t YRT_Baro_Init(const yrt_Baro_conf_t *config){
 
 }
 
+uint8_t YRT_Baro_Init(const  yrt_Baro_Config_ *config);
+
+uint8_t YRT_Baro_Read_All(yrt_Baro_Data_t *out_data);
+
+float YRT_Baro_Get_Altitude(void);
 
 
-
-float YRT_Baro_ReadAltitude(void);
 
 #endif
 
