@@ -13,9 +13,13 @@
 /* ==================================================================== */
 /* YRT STANDART DURUM BİLDİRİMLERİ (EVRENSEL DÖNÜŞ TİPİ)                */
 /* ==================================================================== */
+/**
+ * @brief YRT sistemleri için evrensel hata ve durum dönüş tipi.
+ * @details HAL kütüphanesine olan bağımlılığı izole etmek için kullanılır.
+ */
 typedef enum {
-    YRT_OK = 0,
-    YRT_ERROR = 1
+    YRT_OK = 0,    /**< İşlem başarıyla tamamlandı */
+    YRT_ERROR = 1  /**< İşlem sırasında hata veya zaman aşımı oluştu */
 } YRT_Status_t;
 
 /* ==================================================================== */
@@ -97,6 +101,7 @@ YRT_Status_t YRT_DAQ_API_Read_PT3_Pressure(float *pressure);
 
 /* --- VALF VE BİLDİRİM MODÜLÜ TANIMLAMALARI --- */
 #if YRT_USE_VALVE_MODULE == 1
+/* CubeMX'in main.h dosyasında ürettiği pin tanımlamalarını kullanır */
 #define IGN_VALVE_PORT   YRT_IGN_VALVE_GPIO_Port
 #define IGN_VALVE_PIN    YRT_IGN_VALVE_Pin
 #define REL_VALVE_PORT   YRT_REL_VALVE_GPIO_Port
@@ -106,13 +111,54 @@ YRT_Status_t YRT_DAQ_API_Read_PT3_Pressure(float *pressure);
 #define BUZZER_PORT      YRT_BUZZER_GPIO_Port
 #define BUZZER_PIN       YRT_BUZZER_Pin
 
+/**
+ * @brief   Valfleri güvenli (kapalı) konuma getirir ve başlangıç uyarısını çalar.
+ * @retval  None
+ */
 void YRT_DAQ_API_Init_Valves(void);
+
+/**
+ * @brief   Ateşleme (Ignition) valfini açar.
+ * @retval  None
+ */
 void YRT_DAQ_API_IgnitionValve_Open(void);
+
+/**
+ * @brief   Ateşleme (Ignition) valfini kapatır.
+ * @retval  None
+ */
 void YRT_DAQ_API_IgnitionValve_Close(void);
+
+/**
+ * @brief   Tahliye (Release) valfini açar.
+ * @retval  None
+ */
 void YRT_DAQ_API_ReleaseValve_Open(void);
+
+/**
+ * @brief   Tahliye (Release) valfini kapatır.
+ * @retval  None
+ */
 void YRT_DAQ_API_ReleaseValve_Close(void);
+
+/**
+ * @brief   Sesli uyarı (Buzzer) modülünün durumunu ayarlar.
+ * @param   state 1 ise buzzer öter, 0 ise susar.
+ * @retval  None
+ */
 void YRT_DAQ_API_Buzzer_Set(uint8_t state);
+
+/**
+ * @brief   Kritik sistem hatası durumunda devreye giren alarm bildirim fonksiyonu.
+ * @details Sistem LED1'i yakar ve buzzer'ı sürekli aktif hale getirir.
+ * @retval  None
+ */
 void YRT_DAQ_API_SystemError_Alert(void);
+
+/**
+ * @brief   Sistem hatası giderildiğinde uyarıları temizler.
+ * @retval  None
+ */
 void YRT_DAQ_API_SystemError_Clear(void);
 #endif /* YRT_USE_VALVE_MODULE */
 
@@ -123,6 +169,10 @@ void YRT_DAQ_API_SystemError_Clear(void);
 #include <stdio.h>
 #include <string.h>
 
+/**
+ * @def YRT_LOG_FILENAME
+ * @brief SD Karta kaydedilecek CSV dosyasının adı.
+ */
 #define YRT_LOG_FILENAME "FLIGHT_DATA.csv"
 
 /**
@@ -141,6 +191,10 @@ YRT_Status_t YRT_SD_API_Init(void);
  */
 YRT_Status_t YRT_SD_API_LogData(uint32_t timestamp_ms, float pt1, float pt2, float pt3);
 
+/**
+ * @brief   Sistem kapanırken SD kartı güvenli şekilde ayırır (unmount).
+ * @retval  None
+ */
 void YRT_SD_API_DeInit(void);
 #endif /* YRT_USE_SDCARD_MODULE */
 
@@ -159,7 +213,7 @@ YRT_Status_t YRT_CAN_API_Init(CAN_HandleTypeDef *hcan_ptr);
  * @param   pt1 Bar cinsinden PT1 basınç verisi
  * @param   pt2 Bar cinsinden PT2 basınç verisi
  * @param   pt3 Bar cinsinden PT3 basınç verisi
- * @retval  YRT_Status_t İletim başarılıysa YRT_OK, hata varsa YRT_ERROR döner.
+ * @retval  YRT_Status_t İletim başarılıysa YRT_OK, hatta hata varsa YRT_ERROR döner.
  */
 YRT_Status_t YRT_CAN_API_SendTelemetry(float pt1, float pt2, float pt3);
 #endif /* YRT_USE_CAN_MODULE */
