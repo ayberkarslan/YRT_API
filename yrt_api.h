@@ -27,11 +27,43 @@ YRT_Status_t YRT_Delay(uint32_t period);
 #define YRT_IMU_MPU6050_SELECTED YRT_DISABLED
 #define YRT_IMU_BMI088_SELECTED YRT_DISABLED
 
+
+
+
+typedef struct{
+
+void *hi2c;
+
+}YRT_IMU_Conf_t;
+
+
+
+typedef struct {
+
+    float accel_x;
+    float accel_y;
+    float accel_z;
+    float gyro_x;
+    float gyro_y;
+    float gyro_z;
+    float temperature;
+
+   } yrt_IMU_Data_t;
+
+YRT_Status_t YRT_IMU_Init(const yrt_IMU_conf_t *config);
+YRT_Status_t YRT_IMU_Read_All(yrt_IMU_Data_t *out_data);
+
+
+
+
 //BARO
+
 #define YRT_BARO_BMP280_SELECTED YRT_DISABLED
 #define YRT_BARO_MS5611_SELECTED YRT_DISABLED
 
 
+
+float YRT_Baro_ReadAltitude(void);
 
 
 
@@ -68,7 +100,9 @@ YRT_Status_t YRT_Delay(uint32_t period);
     #include "bno055_yrt.h"
 
 #elif YRT_IMU_MPU6050_SELECTED
-    #include "mpu6050_yrt.h"
+    #include "MPU6050.h"
+    extern Struct_MPU6050 MPU6050;
+
 
 #elif YRT_IMU_BMI088_SELECTED
     #include "bmi088_yrt.h"
