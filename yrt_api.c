@@ -31,28 +31,60 @@
         my_lora.preamble              = config -> preamble;              // default = 8;
 
 
-        return LoRa_init(&my_lora);
+           // 1. CS pinini HIGH yap (SPI haberleşmesi için falling edge şart)
+           HAL_GPIO_WritePin(my_lora.CS_port, my_lora.CS_pin, GPIO_PIN_SET);
+           
+           // 2. Çipi Resetle (CubeMX reset pinini LOW başlattığı için çip kilitli kalıyor)
+           LoRa_reset(&my_lora);
+           
+           // 200 dönerse LORA_OK demektir
+            if (LoRa_init(&my_lora) == 200) { 
+                return YRT_OK; // Bizim sisteme göre "Başarılı (0)"
+            }
+            return YRT_ERROR; // Çip bulunamadıysa (404)
     
     }
 
 
 
     // LoRa transmit
-    YRT_Status_t yrt_LoRa_Transmit(const uint8_t *data, uint8_t length, uint16_t timeout){
-
-    return LoRa_transmit(&my_lora, (uint8_t*)data, length, timeout);
-
-    }
-
+    
+  	YRT_Status_t yrt_LoRa_Transmit(const uint8_t *data, uint8_t length, uint16_t timeout) {
+            
+            // Kütüphane 1 döndürürse başarılı demektir.
+            if (LoRa_transmit(&my_lora, (uint8_t*)data, length, timeout) == 1) {
+                return YRT_OK; // Bizim sistemimize göre "Başarılı (0)" döndür
+            }
+             
+            return YRT_ERROR_TIMEOUT; // Hata olduysa
+	}
 
     // LoRa receive
-    YRT_Status_t yrt_LoRa_Receive(uint8_t *send_data, uint8_t length, uint16_t timeout){
+    YRT_Status_t yrt_LoRa_Receive(uint8_t *receive_data, uint8_t length, uint16_t timeout){
 
-        LoRa_startReceiving(&my_lora);
+        //LoRa_startReceiving(&my_lora);
         //uint8_t LoRa_receive(LoRa* _LoRa, uint8_t* data, uint8_t length);
         //şimdilik dursun burası, asıl receive fonksiyonunu ekleyeceğiz
+      uint32_t start_time = YRT_Get_Time(); // Kronometreyi başlat
+            uint8_t received_bytes = 0;
+            
+            LoRa_startReceiving(&my_lora); // Telsizi dinleme moduna al
 
-        return YRT_OK
+            // Timeout süresi dolana kadar sürekli havayı dinle
+            while ( (YRT_Get_Time() - start_time) < timeout ) {
+                
+                // Havadan gelen paketi çekmeyi dene
+                received_bytes = LoRa_receive(&my_lora, receive_data, length);
+                
+                if (received_bytes > 0) {
+                    return YRT_OK; // Veri yakalandı ve başarıyla alındı!
+                }
+                
+                YRT_Delay(1); // İşlemciyi boğmamak için 1 milisaniye nefesal
+            }
+
+            return YRT_ERROR_TIMEOUT; // Süre doldu, kimse bir şey göndermedi
+       
     
     }
 
@@ -272,30 +304,18 @@ return YRT_ERROR;
 
 
 
- uint32_t YRT_Get_Time(void) {
-        #if YRT_IS_RTOS_ENABLED
-            return osKernelGetTickCount();
-        #else
-            return HAL_GetTick();
-        #endif
-    }
-
-
-    YRT_Status_t YRT_Delay(uint32_t period) {
-        #if YRT_IS_RTOS_ENABLED
-            osDelay(period);
-        #else
-            HAL_Delay(period);
-        #endif
-        return YRT_OK;
-    }
-
-
-
-
-
-
 #endif
+
+#include "cmsis_os.h"
+
+uint32_t YRT_Get_Time(void) {
+    return osKernelSysTick();
+}
+
+YRT_Status_t YRT_Delay(uint32_t period) {
+    osDelay(period);
+    return YRT_OK;
+}
 
 
 
