@@ -1,7 +1,6 @@
 # include "yrt_api.h"
 
 
-
 //LORA
 #if YRT_IS_LORA_ENABLED
 
@@ -25,7 +24,7 @@
 
         my_lora.frequency             = config -> frequency;             // default = 433 MHz
         my_lora.spredingFactor        = config -> spredingFactor;            // default = SF_7
-        my_lora.bandWidth             = config -> bandWidth;       // default = BW_125KHz
+        my_lora.bandWidth             = config -> bandWidth;       // defsault = BW_125KHz
         my_lora.crcRate               = config -> crcRate ;          // default = CR_4_5
         my_lora.power                 = config -> power;      // default = 20db
         my_lora.overCurrentProtection = config -> overCurrentProtection;             // default = 100 mA
@@ -54,6 +53,9 @@
         //şimdilik dursun burası, asıl receive fonksiyonunu ekleyeceğiz
     
     }
+
+
+
 
 
 #endif
@@ -181,7 +183,7 @@
 
         
     
-YRT_Status_t YRT_IMU_Init(const yrt_Baro_conf_t *config){
+YRT_Status_t YRT_IMU_Init(const yrt_IMU_conf_t *config){
 
    #if YRT_IMU_BNO055_SELECTED
    //BNO055
@@ -192,22 +194,77 @@ YRT_Status_t YRT_IMU_Init(const yrt_Baro_conf_t *config){
     #elif   YRT_IMU_MPU6050_SELECTED
     //MPU6050
 
+    MPU6050_Initialization();
 
+    return YRT_OK;
+
+  // bunu okuma yapmak için kullanacağız üst katmanlarda
+  //  MPU6050_ProcessData(&MPU6050);
     #elif YRT_IMU_BMI088_SELECTED
     //BMI088
 
 
     #else
-    //Farklı sensör varsa burayı 
+
+ 
+
+    //Farklı sensör varsa buraya
     
     #endif
+
+   return YRT_ERROR;
+}
+
+
+
+
+YRT_Status_t YRT_IMU_Read_All(yrt_IMU_Data_t *out_data){
+
+
+#if YRT_IMU_MPU6050_SELECTED
+
+
+MPU6050_ProcessData();
+
+
+    out_data ->accel_x = MPU6050.acc_x;
+    out_data ->accel_y = MPU6050.acc_y;
+    out_data ->accel_z = MPU6050.acc_z;
+    out_data ->gyro_x  = MPU6050.gyro_x;
+    out_data ->gyro_y  = MPU6050.gyro_y;
+    out_data ->gyro_z  = MPU6050.gyro_z;
+    out_data ->temperature = MPU6050.temperature;
+ 
+
+    return YRT_OK;
+
+#endif
+
+
+
+#if YRT_IMU_BNO055_SELECTED
+
+#endif
+
+
+
+#if YRT_IMU_BMI088_SELECTED
+
+#endif
+
+
+
+return YRT_ERROR;
+
 
 }
 
 
 
 
-float YRT_Baro_ReadAltitude(void);
+
+
+
 
 
 
