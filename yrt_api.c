@@ -9,7 +9,7 @@
 
 
     //LoRa init
-    uint16_t yrt_LoRa_init(const yrt_LoRa_conf_t *config){
+    YRT_Status_t yrt_LoRa_init(const yrt_LoRa_conf_t *config){
 
 
         my_lora = newLoRa();
@@ -51,6 +51,8 @@
         LoRa_startReceiving(&my_lora);
         //uint8_t LoRa_receive(LoRa* _LoRa, uint8_t* data, uint8_t length);
         //şimdilik dursun burası, asıl receive fonksiyonunu ekleyeceğiz
+
+        return YRT_OK
     
     }
 
@@ -224,7 +226,7 @@ YRT_Status_t YRT_IMU_Read_All(yrt_IMU_Data_t *out_data){
 #if YRT_IMU_MPU6050_SELECTED
 
 
-MPU6050_ProcessData();
+MPU6050_ProcessData(&MPU6050);
 
 
     out_data ->accel_x = MPU6050.acc_x;
