@@ -1,9 +1,27 @@
 #ifndef YRT_API_H
 #define YRT_API_H
 
+#include <stdint.h>
+
+
+
 
 #define YRT_ENABLED 1
 #define YRT_DISABLED 0
+
+
+
+
+
+    typedef enum {
+        YRT_OK = 0,            // her şey relax
+        YRT_ERROR,             // genel
+        YRT_ERROR_TIMEOUT,     
+        YRT_ERROR_I2C,         // i2c hat hatası veya cevap yok
+        YRT_ERROR_SPI,         // spi
+        YRT_ERROR_NOT_READY  
+    } YRT_Status_t;
+
 
 
 
@@ -34,7 +52,7 @@ typedef struct{
 
 void *hi2c;
 
-}YRT_IMU_Conf_t;
+}YRT_IMU_conf_t;
 
 
 
@@ -50,7 +68,7 @@ typedef struct {
 
    } yrt_IMU_Data_t;
 
-YRT_Status_t YRT_IMU_Init(const yrt_IMU_conf_t *config);
+YRT_Status_t YRT_IMU_Init(const YRT_IMU_conf_t *config);
 YRT_Status_t YRT_IMU_Read_All(yrt_IMU_Data_t *out_data);
 
 
@@ -65,16 +83,6 @@ YRT_Status_t YRT_IMU_Read_All(yrt_IMU_Data_t *out_data);
 
 float YRT_Baro_ReadAltitude(void);
 
-
-
-    typedef enum {
-        YRT_OK = 0,            // her şey relax
-        YRT_ERROR,             // genel
-        YRT_ERROR_TIMEOUT,     
-        YRT_ERROR_I2C,         // i2c hat hatası veya cevap yok
-        YRT_ERROR_SPI,         // spi
-        YRT_ERROR_NOT_READY  
-    } YRT_Status_t;
 
 
 
@@ -109,6 +117,8 @@ float YRT_Baro_ReadAltitude(void);
 
 #else
 //another libs 
+
+#endif
 
 #endif
 
@@ -187,7 +197,7 @@ typedef struct {
 
 
 
-YRT_Status_t YRT_Baro_Init(const  yrt_Baro_Config_ *config);
+YRT_Status_t YRT_Baro_Init(const  yrt_Baro_Config_t *config);
 
 YRT_Status_t YRT_Baro_Read_All(yrt_Baro_Data_t *out_data);
 
@@ -208,6 +218,7 @@ float YRT_Baro_Get_Altitude(void);
 
 #endif
 
+#endif
 
 
 
