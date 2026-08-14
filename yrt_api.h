@@ -2,7 +2,7 @@
 #define YRT_API_H
 
 #include <stdint.h>
-
+#include <stdlib.h>
 
 
 
@@ -45,6 +45,8 @@ YRT_Status_t YRT_Delay(uint32_t period);
 #define YRT_IMU_MPU6050_SELECTED YRT_DISABLED
 #define YRT_IMU_BMI088_SELECTED YRT_DISABLED
 
+//GPS
+#define YRT_IS_GPS_ENABLED YRT_ENABLED
 
 
 
@@ -71,6 +73,44 @@ typedef struct {
 YRT_Status_t YRT_IMU_Init(const YRT_IMU_conf_t *config);
 YRT_Status_t YRT_IMU_Read_All(yrt_IMU_Data_t *out_data);
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+typedef struct{
+    void *huart;
+}YRT_GPS_Config_t;
+
+
+
+
+
+
+
+typedef struct{
+        float latitude;       // enlem
+        float longitude;      // boylam
+        float altitude;       // rakım (m)
+        float speed_kmh;      // hız (km/h)
+        uint8_t satellites;   // uydu sayısı
+        uint8_t fix_status;   // 1:OK 0:YOK
+    }YRT_GPS_t;
+
+
+
+
+
+     YRT_Status_t YRT_GPS_Init(const YRT_GPS_Config_t *config);
+        YRT_Status_t YRT_GPS_Read(YRT_GPS_t *out_data);
 
 
 
@@ -121,6 +161,13 @@ float YRT_Baro_ReadAltitude(void);
 #endif
 
 #endif
+
+
+
+
+
+
+
 
 
 
@@ -244,6 +291,39 @@ float YRT_Baro_Get_Altitude(void);
         void     *dio0_port;     
         uint16_t dio0_pin;       
     } yrt_LoRa_conf_t;
+
+
+
+
+
+
+
+
+
+
+
+//GPS
+
+#if YRT_IS_GPS_ENABLED
+
+#if YRT_IMU_BNO055_SELECTED
+    #include "bno055_yrt.h"
+
+#elif YRT_IMU_MPU6050_SELECTED
+    #include "MPU6050.h"
+    extern Struct_MPU6050 MPU6050;
+
+
+#elif YRT_IMU_BMI088_SELECTED
+    #include "bmi088_yrt.h"
+
+#else
+//another libs 
+
+#endif
+
+#endif
+
 
 
 
