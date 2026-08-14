@@ -11,7 +11,7 @@
 #include "stm32f4xx_hal.h"
 
 /* ==================================================================== */
-/* YRT STANDART DURUM BİLDİRİMLERİ (EVRENSEL DÖNÜŞ TİPİ)                */
+/* YRT STANDART DURUM BİLDİRİMLERİ          */
 /* ==================================================================== */
 /**
  * @brief YRT sistemleri için evrensel hata ve durum dönüş tipi.
@@ -23,7 +23,7 @@ typedef enum {
 } YRT_Status_t;
 
 /* ==================================================================== */
-/* MODÜL AKTİF/PASİF ANAHTARLARI (1 = ENABLE, 0 = DISABLE)              */
+/* MODÜL AKTİF/PASİF ANAHTARLARI (1 = açık, 0 = kapalı)              */
 /* ==================================================================== */
 /**
  * @def YRT_SYSTEM_ENABLE
