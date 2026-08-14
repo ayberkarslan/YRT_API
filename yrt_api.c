@@ -293,12 +293,142 @@ return YRT_ERROR;
 
 }
 
+#endif // YRT_IS_IMU_ENABLED
+
+#if YRT_IS_GPS_ENABLED
+
+static void *gps_uart;
+static uint8_t gps_rx_buffer[100]; //GNGGA bufferi
+
+
+
+//GPS
+
+
+
+YRT_Status_t YRT_GPS_Init(const YRT_GPS_Config_t *config){
+
+    
+    if(config == NULL || config->huart == NULL){
+
+   return YRT_ERROR;
+ }
+
+
+   gps_uart = config->huart;
+
+   HAL_UART_Receive_DMA(gps_uart, gps_rx_buffer, 100);
+ 
+  return YRT_OK;
+   
+}
 
 
 
 
 
 
+
+
+
+
+
+    void YRT_GPS_Parse(const char *sentence, int field_index, char *out_buffer) {
+        int i = 0;             // harf sayacı
+        int current_comma = 0; // virgül sayacı
+        int out_i = 0;         // çıkarttığımız karakterin bufferdaki gideceği sırası
+
+        // 1. Adım: İstenilen virgüle kadar cümleyi sar (Kelimeleri atla)
+        while (sentence[i] != '\0' && current_comma < field_index) {
+            if (sentence[i] == ',') {
+                current_comma++;
+            }
+            i++;
+        }
+
+        // istenilen virgüle ulaşınca kopyalamaya başla - diğer virgüle kadar
+        while (sentence[i] != '\0' && sentence[i] != ',' && sentence[i] != '*') {
+            out_buffer[out_i] = sentence[i];
+            out_i++;
+            i++;
+        }
+
+        //stringi kapatyık
+        out_buffer[out_i] = '\0';
+    }
+
+
+
+
+
+
+
+
+
+
+
+        YRT_Status_t YRT_GPS_Read(YRT_GPS_t *out_data) {
+        char gecici_yazi[20];
+        float raw_value;
+        int degrees;
+        float minutes;
+
+        // fix kalitesi (6)
+        YRT_GPS_Parse(gps_rx_buffer, 6, gecici_yazi);
+        out_data->fix_status = atoi(gecici_yazi); // atoi: yazıyı tam sayıya
+        
+        // uydulara henüz kilitlenmemişse saçma sapan veriler okumamak için direkt çıktık
+        if (out_data->fix_status == 0) {
+            return YRT_ERROR; 
+        }
+
+        // uydu sayısı (7)
+        YRT_GPS_Parse(gps_rx_buffer, 7, gecici_yazi);
+        out_data->satellites = atoi(gecici_yazi);
+
+        // rakım (9)
+        YRT_GPS_Parse(gps_rx_buffer, 9, gecici_yazi);
+        out_data->altitude = atof(gecici_yazi); // atof: yazıyı ondalıklı sayıya çevirir
+
+        // enlem lat (2) -> DDMM.MMMM formatı
+        YRT_GPS_Parse(gps_rx_buffer, 2, gecici_yazi);
+        raw_value = atof(gecici_yazi);         // Örneğin 4100.1234 gelir
+        degrees = (int)(raw_value / 100);      // 4100'ü 100'e bölüp tam kısmını aldık: 41 derece
+        minutes = raw_value - (degrees * 100); // 4100.1234 - 4100 = 0.1234 dakika kalır
+        out_data->latitude = degrees + (minutes / 60.0); //google maps formatı
+
+        // boylam long (4)
+        YRT_GPS_Parse(gps_rx_buffer, 4, gecici_yazi);
+        raw_value = atof(gecici_yazi);         // Örneğin 02800.5678 gelir
+        degrees = (int)(raw_value / 100);      // 28 derece
+        minutes = raw_value - (degrees * 100); // 0.5678 dakika
+        out_data->longitude = degrees + (minutes / 60.0);
+
+        return YRT_OK;
+    }
+
+
+
+
+
+
+
+/*
+ YRT_Status_t yrt_GPS_Read(yrt_GPS_Data_t *out_data){
+
+    char gecici_yazi[20]; // tazıyı alacağımız buffer
+
+    //9. virgül sonrası mesela
+    YRT_GPS_Parse(gps_rx_buffer, 9, gecici_yazi); 
+    // yazıyı float yapıp apiye at
+    out_data->altitude = atof(gecici_yazi); 
+
+       out_data->longitude = ;
+       out_data->latitude =  ;
+       return YRT_OK;
+ }
+
+*/
 
 
 
@@ -306,11 +436,21 @@ return YRT_ERROR;
 
 #endif
 
+
+
+
+
+
+
+
+
+
 #include "cmsis_os.h"
 
 uint32_t YRT_Get_Time(void) {
     return osKernelSysTick();
 }
+
 
 YRT_Status_t YRT_Delay(uint32_t period) {
     osDelay(period);
