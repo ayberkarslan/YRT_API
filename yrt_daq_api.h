@@ -2,7 +2,7 @@
  * @file    yrt_daq_api.h
  * @brief   YRT STARDUSTv2 DAQ Kartı Donanım Soyutlama Katmanı (API)
  * @details Modüler yapıda tasarlanmıştır. İhtiyaç duyulmayan alt modüller
- *          anahtarlar üzerinden (0 yapılarak) devre dışı bırakılabilir.
+ *          0 yapılarak devre dışı bırakılabilir.
  */
 
 #ifndef YRT_DAQ_API_H
