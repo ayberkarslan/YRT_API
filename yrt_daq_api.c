@@ -19,7 +19,6 @@ YRT_Status_t YRT_DAQ_API_Init_Sensors(I2C_HandleTypeDef *hi2c_ptr) {
     if (hi2c_ptr == NULL) return YRT_ERROR;
     daq_i2c = hi2c_ptr;
 
-    /* HAL/Driver seviyesindeki fonksiyon kendi tipini döner, biz YRT tipine çevirip üst katmana iletiriz */
     if (ADS1115_Init(daq_i2c, ADS1115_DATA_RATE_128, ADS1115_PGA_TWO) != HAL_OK) {
         return YRT_ERROR;
     }
