@@ -1,7 +1,6 @@
-# include "yrt_api.h"
-
-
-//LORA
+#include "yrt_api.h"
+#include <string.h>
+#include <stdlib.h>//LORA
 #if YRT_IS_LORA_ENABLED
 
 
@@ -31,18 +30,17 @@
         my_lora.preamble              = config -> preamble;              // default = 8;
 
 
-           // 1. CS pinini HIGH yap (SPI haberleşmesi için falling edge şart)
+           // cs high (spi başlaması için falling edge şart)
            HAL_GPIO_WritePin(my_lora.CS_port, my_lora.CS_pin, GPIO_PIN_SET);
            
-           // 2. Çipi Resetle (CubeMX reset pinini LOW başlattığı için çip kilitli kalıyor)
+           // önce reset at
            LoRa_reset(&my_lora);
            
            // 200 dönerse LORA_OK demektir
-            if (LoRa_init(&my_lora) == 200) { 
-                return YRT_OK; // Bizim sisteme göre "Başarılı (0)"
-            }
-            return YRT_ERROR; // Çip bulunamadıysa (404)
-    
+                if (LoRa_init(&my_lora) == 200) { 
+                    return YRT_OK; 
+                }
+            return YRT_ERROR;
     }
 
 
@@ -51,12 +49,15 @@
     
   	YRT_Status_t yrt_LoRa_Transmit(const uint8_t *data, uint8_t length, uint16_t timeout) {
             
-            // Kütüphane 1 döndürürse başarılı demektir.
+            // ÖNEMLİ LAN - Eski interruptan kalan bayrakları temizliyoruz ki LoRa kendini kilitlemesin (açılış parazitinde yapabiliyor bunu)
+            LoRa_write(&my_lora, RegIrqFlags, 0xFF);
+
+            //kütüphane 1 döndürürse başarılı demek
             if (LoRa_transmit(&my_lora, (uint8_t*)data, length, timeout) == 1) {
-                return YRT_OK; // Bizim sistemimize göre "Başarılı (0)" döndür
+                return YRT_OK; 
             }
              
-            return YRT_ERROR_TIMEOUT; // Hata olduysa
+            return YRT_ERROR_TIMEOUT; 
 	}
 
     // LoRa receive
@@ -307,20 +308,19 @@ static uint8_t gps_rx_buffer[100]; //GNGGA bufferi
 
 
 YRT_Status_t YRT_GPS_Init(const YRT_GPS_Config_t *config){
-
-    
     if(config == NULL || config->huart == NULL){
+       return YRT_ERROR;
+    }
+    gps_uart = config->huart;
 
-   return YRT_ERROR;
- }
+    // --- UART HATA TEMIZLEME ---
+    __HAL_UART_CLEAR_OREFLAG((UART_HandleTypeDef*)gps_uart);
+    __HAL_UART_CLEAR_FEFLAG((UART_HandleTypeDef*)gps_uart);
+    
+    HAL_Delay(100);
 
-
-   gps_uart = config->huart;
-
-   HAL_UART_Receive_DMA(gps_uart, gps_rx_buffer, 100);
- 
-  return YRT_OK;
-   
+    HAL_UART_Receive_DMA(gps_uart, gps_rx_buffer, 100);
+    return YRT_OK;
 }
 
 
@@ -333,27 +333,48 @@ YRT_Status_t YRT_GPS_Init(const YRT_GPS_Config_t *config){
 
 
 
-    void YRT_GPS_Parse(const char *sentence, int field_index, char *out_buffer) {
-        int i = 0;             // harf sayacı
-        int current_comma = 0; // virgül sayacı
-        int out_i = 0;         // çıkarttığımız karakterin bufferdaki gideceği sırası
 
-        // 1. Adım: İstenilen virgüle kadar cümleyi sar (Kelimeleri atla)
-        while (sentence[i] != '\0' && current_comma < field_index) {
-            if (sentence[i] == ',') {
+
+    void YRT_GPS_Parse(const char *sentence, int field_index, char *out_buffer) {
+        // DMA circular buffer olduğu için kelimeler dizinin sonundan başına bölünebilir!
+        // Bunu çözmek için diziyi kendi arkasına kopyalayarak (200 harf) düz bir dizi yapıyoruz.
+        char safe_buffer[201];
+        memcpy(safe_buffer, sentence, 100);
+        memcpy(safe_buffer + 100, sentence, 100); // Peşine aynısını bir daha ekle
+        safe_buffer[200] = '\0';
+
+        // Buffer'ın içinde GNGGA veya GPGGA arıyoruz
+        char *start = strstr(safe_buffer, "$GNGGA");
+        if (start == NULL) {
+            start = strstr(safe_buffer, "$GPGGA");
+        }
+        
+        // Eğer GGA cümlesi bulunamadıysa boş dön
+        if (start == NULL) {
+            out_buffer[0] = '\0';
+            return;
+        }
+
+        int i = 0;             // GNGGA kelimesinin başından itibaren harf sayacı
+        int current_comma = 0; // Virgül sayacı
+        int out_i = 0;         // Çıkarttığımız karakterin bufferdaki gideceği sırası
+
+        // İstenilen virgüle kadar cümleyi sar (Kelimeleri atla)
+        while (start[i] != '\0' && current_comma < field_index) {
+            if (start[i] == ',') {
                 current_comma++;
             }
             i++;
         }
 
-        // istenilen virgüle ulaşınca kopyalamaya başla - diğer virgüle kadar
-        while (sentence[i] != '\0' && sentence[i] != ',' && sentence[i] != '*') {
-            out_buffer[out_i] = sentence[i];
+        // İstenilen virgüle ulaşınca kopyalamaya başla - diğer virgüle veya yıldıza kadar
+        while (start[i] != '\0' && start[i] != ',' && start[i] != '*') {
+            out_buffer[out_i] = start[i];
             out_i++;
             i++;
         }
 
-        //stringi kapatyık
+        // Stringi kapatıyoruz
         out_buffer[out_i] = '\0';
     }
 
@@ -374,7 +395,7 @@ YRT_Status_t YRT_GPS_Init(const YRT_GPS_Config_t *config){
         float minutes;
 
         // fix kalitesi (6)
-        YRT_GPS_Parse(gps_rx_buffer, 6, gecici_yazi);
+        YRT_GPS_Parse((const char *)gps_rx_buffer, 6, gecici_yazi);
         out_data->fix_status = atoi(gecici_yazi); // atoi: yazıyı tam sayıya
         
         // uydulara henüz kilitlenmemişse saçma sapan veriler okumamak için direkt çıktık
@@ -383,22 +404,22 @@ YRT_Status_t YRT_GPS_Init(const YRT_GPS_Config_t *config){
         }
 
         // uydu sayısı (7)
-        YRT_GPS_Parse(gps_rx_buffer, 7, gecici_yazi);
+        YRT_GPS_Parse((const char*)gps_rx_buffer, 7, gecici_yazi);
         out_data->satellites = atoi(gecici_yazi);
 
         // rakım (9)
-        YRT_GPS_Parse(gps_rx_buffer, 9, gecici_yazi);
+        YRT_GPS_Parse((const char*)gps_rx_buffer, 9, gecici_yazi);
         out_data->altitude = atof(gecici_yazi); // atof: yazıyı ondalıklı sayıya çevirir
 
         // enlem lat (2) -> DDMM.MMMM formatı
-        YRT_GPS_Parse(gps_rx_buffer, 2, gecici_yazi);
+        YRT_GPS_Parse((const char*)gps_rx_buffer, 2, gecici_yazi);
         raw_value = atof(gecici_yazi);         // Örneğin 4100.1234 gelir
         degrees = (int)(raw_value / 100);      // 4100'ü 100'e bölüp tam kısmını aldık: 41 derece
         minutes = raw_value - (degrees * 100); // 4100.1234 - 4100 = 0.1234 dakika kalır
         out_data->latitude = degrees + (minutes / 60.0); //google maps formatı
 
         // boylam long (4)
-        YRT_GPS_Parse(gps_rx_buffer, 4, gecici_yazi);
+        YRT_GPS_Parse((const char*)gps_rx_buffer, 4, gecici_yazi);
         raw_value = atof(gecici_yazi);         // Örneğin 02800.5678 gelir
         degrees = (int)(raw_value / 100);      // 28 derece
         minutes = raw_value - (degrees * 100); // 0.5678 dakika
