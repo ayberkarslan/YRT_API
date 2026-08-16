@@ -450,13 +450,13 @@ static CAN_FilterTypeDef   canFilterConfig;
 static CAN_TxHeaderTypeDef TxHeader;
 static uint32_t            TxMailbox;
 
-YRT_Status_t YRT_CAN_Init(YRT_JR_CAN_DEV_t *can_dev)
+YRT_Status_t YRT_CAN_Init(YRT_CAN_DEV_t *can_dev)
 {
     if (can_dev == NULL || can_dev->hcan == NULL) return YRT_INVALID_PARAM;
 
     canFilterConfig.FilterActivation = CAN_FILTER_ENABLE;
 	canFilterConfig.FilterBank = 0;
-	canFilterConfig.FilterFIFOAssignment = (can_dev->fifo_num == YRT_JR_CAN_FIFO0) ? CAN_FILTER_FIFO0 : CAN_FILTER_FIFO1;
+	canFilterConfig.FilterFIFOAssignment = (can_dev->fifo_num == YRT_CAN_FIFO0) ? CAN_FILTER_FIFO0 : CAN_FILTER_FIFO1;
 	canFilterConfig.FilterIdHigh = 0x0000;
 	canFilterConfig.FilterIdLow = 0x0000;
 	canFilterConfig.FilterMaskIdHigh = 0x0000;
@@ -511,18 +511,18 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan){
  * @param mode GPIO mode
  * @return Result of the initialization
  */
-YRT_Status_t YRT_GPIO_Init(YRT_JR_GPIO *gpio, GPIO_TypeDef *port, uint16_t pin, YRT_JR_OP_MODE mode)
+YRT_Status_t YRT_GPIO_Init(YRT_GPIO *gpio, GPIO_HandleTypeDef *port, uint16_t pin, YRT_OP_MODE mode)
 {
     if (gpio == NULL || port == NULL) return YRT_INVALID_PARAM;
 
     gpio->port = port;
     gpio->pin = pin;
     gpio->mode = mode;
-    gpio->state = YRT_JR_OFF;
+    gpio->state = YRT_OFF;
 
     GPIO_InitTypeDef GPIO_InitStruct = {0};
     GPIO_InitStruct.Pin = pin;
-    GPIO_InitStruct.Mode = (mode == YRT_JR_MODE_ACTIVE) ? GPIO_MODE_OUTPUT_PP : GPIO_MODE_INPUT;
+    GPIO_InitStruct.Mode = (mode == YRT_MODE_ACTIVE) ? GPIO_MODE_OUTPUT_PP : GPIO_MODE_INPUT;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     HAL_GPIO_Init(port, &GPIO_InitStruct);
 
@@ -534,16 +534,16 @@ YRT_Status_t YRT_GPIO_Init(YRT_JR_GPIO *gpio, GPIO_TypeDef *port, uint16_t pin, 
  * @param gpio GPIO structure
  * @param state Desired state
  */
-void YRT_GPIO_SetState(YRT_JR_GPIO *gpio, YRT_JR_DEV_STATE state)
+void YRT_GPIO_SetState(YRT_GPIO *gpio, YRT_DEV_STATE state)
 {
     if (gpio == NULL || gpio->port == NULL) return;
 
     gpio->state = state;
-    if (state == YRT_JR_ON)
+    if (state == YRT_ON)
     {
         HAL_GPIO_WritePin(gpio->port, gpio->pin, GPIO_PIN_SET);
     }
-    else if (state == YRT_JR_OFF)
+    else if (state == YRT_OFF)
     {
         HAL_GPIO_WritePin(gpio->port, gpio->pin, GPIO_PIN_RESET);
     }
@@ -553,7 +553,7 @@ void YRT_GPIO_SetState(YRT_JR_GPIO *gpio, YRT_JR_DEV_STATE state)
  * @brief Toggle the state of a GPIO pin
  * @param gpio GPIO structure
  */
-void YRT_GPIO_Toggle(YRT_JR_GPIO *gpio) {
+void YRT_GPIO_Toggle(YRT_GPIO *gpio) {
     if (gpio == NULL || gpio->port == NULL) return;
     HAL_GPIO_TogglePin(gpio->port, gpio->pin);
 }
@@ -567,7 +567,7 @@ void YRT_GPIO_Toggle(YRT_JR_GPIO *gpio) {
  */
 #if YRT_IS_SERIAL_ENABLED
 
-YRT_Status_t YRT_Serial_Send(YRT_JR_SERIAL_DEV *dev, uint8_t *data, uint16_t len) {
+YRT_Status_t YRT_Serial_Send(YRT_SERIAL_DEV *dev, uint8_t *data, uint16_t len) {
     if (dev == NULL || data == NULL || len == 0) return YRT_ERROR;
 
     switch (dev->protocol) {
@@ -627,7 +627,7 @@ YRT_Status_t YRT_Serial_Send(YRT_JR_SERIAL_DEV *dev, uint8_t *data, uint16_t len
  * @param len Length of data to receive
  * @return Result of the operation
  */
-YRT_Status_t YRT_Serial_Receive(YRT_JR_SERIAL_DEV *dev, uint8_t *data, uint16_t len) {
+YRT_Status_t YRT_Serial_Receive(YRT_SERIAL_DEV *dev, uint8_t *data, uint16_t len) {
     if (dev == NULL || data == NULL || len == 0) return YRT_ERROR;
 
     switch (dev->protocol) {
