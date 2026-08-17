@@ -336,30 +336,30 @@ YRT_Status_t YRT_GPS_Init(const YRT_GPS_Config_t *config){
 
 
     void YRT_GPS_Parse(const char *sentence, int field_index, char *out_buffer) {
-        // DMA circular buffer olduğu için kelimeler dizinin sonundan başına bölünebilir!
-        // Bunu çözmek için diziyi kendi arkasına kopyalayarak (200 harf) düz bir dizi yapıyoruz.
+        // circular bufferda veri kaybında bufferin baştan yanlış dizilmesini önelemek için aldığımız bufferi
+        // kopyalayıp kendi ardına ekleyerek kaybı önledik
         char safe_buffer[201];
         memcpy(safe_buffer, sentence, 100);
-        memcpy(safe_buffer + 100, sentence, 100); // Peşine aynısını bir daha ekle
+        memcpy(safe_buffer + 100, sentence, 100); // peşine aynısını kopyaladık
         safe_buffer[200] = '\0';
 
-        // Buffer'ın içinde GNGGA veya GPGGA arıyoruz
+        // buffer şçinde GNGGA veya GPGGA arıyoruz.
         char *start = strstr(safe_buffer, "$GNGGA");
         if (start == NULL) {
             start = strstr(safe_buffer, "$GPGGA");
         }
         
-        // Eğer GGA cümlesi bulunamadıysa boş dön
+        // GGA ifadesi yoksa başa dönüyoruz
         if (start == NULL) {
             out_buffer[0] = '\0';
             return;
         }
 
         int i = 0;             // GNGGA kelimesinin başından itibaren harf sayacı
-        int current_comma = 0; // Virgül sayacı
-        int out_i = 0;         // Çıkarttığımız karakterin bufferdaki gideceği sırası
+        int current_comma = 0;
+        int out_i = 0;         
 
-        // İstenilen virgüle kadar cümleyi sar (Kelimeleri atla)
+        //  istenilen virgül kadar kelime atlıyoruz (spesifik verileri almak için)
         while (start[i] != '\0' && current_comma < field_index) {
             if (start[i] == ',') {
                 current_comma++;
@@ -367,14 +367,14 @@ YRT_Status_t YRT_GPS_Init(const YRT_GPS_Config_t *config){
             i++;
         }
 
-        // İstenilen virgüle ulaşınca kopyalamaya başla - diğer virgüle veya yıldıza kadar
+        // istenilen spesifik veriye ulaşınca kopyalamayı başlattık (yıldız ya da virgül işaretine kadar sürüyor)
         while (start[i] != '\0' && start[i] != ',' && start[i] != '*') {
             out_buffer[out_i] = start[i];
             out_i++;
             i++;
         }
 
-        // Stringi kapatıyoruz
+        //  kapattık
         out_buffer[out_i] = '\0';
     }
 
@@ -394,7 +394,7 @@ YRT_Status_t YRT_GPS_Init(const YRT_GPS_Config_t *config){
         int degrees;
         float minutes;
 
-        // fix kalitesi (6)
+        // fix kalitesi 
         YRT_GPS_Parse((const char *)gps_rx_buffer, 6, gecici_yazi);
         out_data->fix_status = atoi(gecici_yazi); // atoi: yazıyı tam sayıya
         
@@ -403,13 +403,13 @@ YRT_Status_t YRT_GPS_Init(const YRT_GPS_Config_t *config){
             return YRT_ERROR; 
         }
 
-        // uydu sayısı (7)
+        // uydu sayısı
         YRT_GPS_Parse((const char*)gps_rx_buffer, 7, gecici_yazi);
         out_data->satellites = atoi(gecici_yazi);
 
         // rakım (9)
         YRT_GPS_Parse((const char*)gps_rx_buffer, 9, gecici_yazi);
-        out_data->altitude = atof(gecici_yazi); // atof: yazıyı ondalıklı sayıya çevirir
+        out_data->altitude = atof(gecici_yazi); // atof: yazıyı ondalıklı sayıya 
 
         // enlem lat (2) -> DDMM.MMMM formatı
         YRT_GPS_Parse((const char*)gps_rx_buffer, 2, gecici_yazi);
