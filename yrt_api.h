@@ -5,7 +5,7 @@
 #ifndef YRT_API_H
 #define YRT_API_H
 
-#include "cmsis_os.h"
+//#include "cmsis_os.h"
 
 typedef enum {
     YRT_OK = 0,
@@ -21,15 +21,15 @@ typedef enum {
 #define YRT_ENABLED 1
 #define YRT_DISABLED 0
 
-#define YRT_IS_RTOS_ENABLED YRT_ENABLED
-#define YRT_IS_LORA_ENABLED YRT_ENABLED
+#define YRT_IS_RTOS_ENABLED YRT_DISABLED
+#define YRT_IS_LORA_ENABLED YRT_DISABLED
 #define YRT_IS_IMU_ENABLED YRT_ENABLED
 #define YRT_IS_BARO_ENABLED YRT_ENABLED
-#define YRT_IS_SERIAL_ENABLED YRT_ENABLED
+#define YRT_IS_SERIAL_ENABLED YRT_DISABLED
 
-#if YRT_IS_SERIAL_ENABLED
-#define YRT_IS_CAN_ENABLED YRT_DISABLED
-#endif
+#define YRT_IS_SERIAL_ENABLED YRT_DISABLED
+
+#define YRT_IS_CAN_ENABLED YRT_ENABLED
 
 #include "stm32f4xx_hal.h"
 #include "math.h"
@@ -342,7 +342,9 @@ void YRT_Delay(uint32_t period);
 #if YRT_IS_CAN_ENABLED
 
 #include "can.h"
+#if YRT_IS_RTOS_ENABLED
 #include "cmsis_os.h"
+#endif
 
 typedef enum {
     YRT_CAN_FIFO0 = 0,
@@ -370,6 +372,16 @@ extern osMessageQueueId_t canRxQueueHandle;
  * @return YRT_Status_t
  */
 YRT_Status_t YRT_CAN_Init(YRT_CAN_DEV_t *can_dev);
+
+/**
+ * @brief Özel CAN veri gonderme fonksiyonu
+ */
+YRT_Status_t YRT_CAN_Send(YRT_CAN_DEV_t *can_dev, uint32_t target_id, uint8_t *data, uint16_t len);
+
+/**
+ * @brief Ozel CAN veri alma fonksiyonu
+ */
+YRT_Status_t YRT_CAN_Receive(YRT_CAN_DEV_t *can_dev, uint32_t *sender_id, uint8_t *data, uint16_t *len);
 
 #endif
 
