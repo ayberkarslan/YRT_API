@@ -1,3 +1,5 @@
+//YRT_API_C
+
 #include "yrt_api.h"
 
 
@@ -13,6 +15,19 @@ BMI088IMU bmi088;
 
 #endif
 #endif
+
+
+
+
+void YRT_Delay(uint32_t period)
+{
+#if YRT_IS_RTOS_ENABLED
+    osDelay(period);
+#else
+    HAL_Delay(period);
+#endif
+}
+
 
 #if YRT_IS_BARO_ENABLED
 
@@ -80,7 +95,7 @@ static uint8_t ms5611_i2c_read(uint8_t addr, uint8_t *data, uint16_t len) {
                 if (LoRa_init(&my_lora) == 200) { 
                     return YRT_OK; 
                 }
-            return YRT_ERROR;
+            return YRT_ERR;
     }
 
         // LoRa transmit
@@ -134,14 +149,6 @@ static uint8_t ms5611_i2c_read(uint8_t addr, uint8_t *data, uint16_t len) {
 //IMU
 #if YRT_IS_IMU_ENABLED
 
-void YRT_Delay(uint32_t period)
-{
-#if YRT_IS_RTOS_ENABLED
-    osDelay(period);
-#else
-    HAL_Delay(period);
-#endif
-}
 
 YRT_Status_t YRT_IMU_Config(YRT_IMU_t *yrt_imu)
 {
@@ -481,12 +488,11 @@ float YRT_CalculateAltitude(float p, float pi, float ti)
 #if YRT_IS_CAN_ENABLED
 
 static CAN_FilterTypeDef   canFilterConfig;
-static CAN_TxHeaderTypeDef TxHeader;
-static uint32_t            TxMailbox;
+
 
 YRT_Status_t YRT_CAN_Init(YRT_CAN_DEV_t *can_dev)
 {
-    if (can_dev == NULL || can_dev->hcan == NULL) return YRT_ERROR;
+    if (can_dev == NULL || can_dev->hcan == NULL) return YRT_ERR;
 
     canFilterConfig.FilterActivation = CAN_FILTER_ENABLE;
 	canFilterConfig.FilterBank = 0;
@@ -520,7 +526,9 @@ YRT_Status_t YRT_CAN_Init(YRT_CAN_DEV_t *can_dev)
 
 YRT_Status_t YRT_CAN_Send(YRT_CAN_DEV_t *can_dev, uint32_t target_id, uint8_t *data, uint16_t len)
 {
-    if (can_dev == NULL || can_dev->hcan == NULL || data == NULL || len == 0) return YRT_ERROR;
+    CAN_TxHeaderTypeDef TxHeader = {0};
+    uint32_t            TxMailbox = 0;
+    if (can_dev == NULL || can_dev->hcan == NULL || data == NULL || len == 0) return YRT_ERR;
 
     uint16_t sent_bytes = 0;
     TxHeader.StdId = target_id;
@@ -556,7 +564,7 @@ YRT_Status_t YRT_CAN_Receive(YRT_CAN_DEV_t *can_dev, uint32_t *sender_id, uint8_
     if (canRxQueueHandle == NULL) return YRT_ERR;
     CAN_Msg_t msg;
 
-    if (osMessageQueueGet(canRxQueueHandle, &msg, NULL, 0) == osOK) {
+    if (xQueueReceive((QueueHandle_t)canRxQueueHandle, &msg, 0) == pdPASS){
         if (sender_id != NULL) *sender_id = msg.header.StdId;
         if (len != NULL) *len = msg.header.DLC;
         if (data != NULL) memcpy(data, msg.data, msg.header.DLC);
@@ -589,7 +597,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan){
         HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &newMsg.header, newMsg.data);
 #if YRT_IS_RTOS_ENABLED
         if (canRxQueueHandle != NULL) {
-            osMessageQueuePut(canRxQueueHandle, &newMsg, 0, 0);
+            xQueueSendFromISR((QueueHandle_t)canRxQueueHandle, &newMsg, NULL);
         }
 #endif
     }
@@ -607,7 +615,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan){
  */
 YRT_Status_t YRT_GPIO_Init(YRT_GPIO *gpio, GPIO_TypeDef *port, uint16_t pin, YRT_OP_MODE mode)
 {
-    if (gpio == NULL || port == NULL) return YRT_ERROR;
+    if (gpio == NULL || port == NULL) return YRT_ERR;
 
     gpio->port = port;
     gpio->pin = pin;
@@ -666,7 +674,7 @@ YRT_Status_t YRT_Serial_Send(YRT_SERIAL_DEV *dev, uint8_t *data, uint16_t len) {
 
     switch (dev->protocol) {
         case YRT_SERIAL_UART:
-            if (dev->huart == NULL) return YRT_ERROR;
+            if (dev->huart == NULL) return YRT_ERR;
             if (HAL_UART_Transmit(dev->huart, data, len, HAL_MAX_DELAY) != HAL_OK) return YRT_COMM_ERR;
             dev->bytesSent += len;
             break;
@@ -683,7 +691,7 @@ YRT_Status_t YRT_Serial_Send(YRT_SERIAL_DEV *dev, uint8_t *data, uint16_t len) {
         case YRT_SERIAL_CAN:
 #if YRT_IS_CAN_ENABLED
             {
-        if (dev->hcan == NULL) return YRT_ERROR;
+        if (dev->hcan == NULL) return YRT_ERR;
 
         uint16_t sent_bytes = 0;
         TxHeader.StdId = dev->target_id;
@@ -703,12 +711,12 @@ YRT_Status_t YRT_Serial_Send(YRT_SERIAL_DEV *dev, uint8_t *data, uint16_t len) {
                 dev->bytesSent += len;
             }
 #else
-            return YRT_ERROR; // CAN makrosu kapaliysa hata don
+            return YRT_ERR; // CAN makrosu kapaliysa hata don
 #endif
             break;
 
         default:
-            return YRT_ERROR;
+            return YRT_ERR;
     }
 
     return YRT_OK;
@@ -726,7 +734,7 @@ YRT_Status_t YRT_Serial_Receive(YRT_SERIAL_DEV *dev, uint8_t *data, uint16_t len
 
     switch (dev->protocol) {
         case YRT_SERIAL_UART:
-            if (dev->huart == NULL) return YRT_ERROR;
+            if (dev->huart == NULL) return YRT_ERR;
             if (HAL_UART_Receive(dev->huart, data, len, HAL_MAX_DELAY) != HAL_OK) return YRT_COMM_ERR;
             dev->bytesReceived += len;
             break;
@@ -754,7 +762,7 @@ YRT_Status_t YRT_Serial_Receive(YRT_SERIAL_DEV *dev, uint8_t *data, uint16_t len
             break;
 
         default:
-            return YRT_ERROR;
+            return YRT_ERR;
     }
 
     return YRT_OK;
@@ -776,7 +784,7 @@ static uint8_t gps_rx_buffer[100]; //GNGGA bufferi
 
 YRT_Status_t YRT_GPS_Init(const YRT_GPS_Config_t *config){
     if(config == NULL || config->huart == NULL){
-       return YRT_ERROR;
+       return YRT_ERR;
     }
     gps_uart = config->huart;
 
@@ -872,7 +880,7 @@ YRT_Status_t YRT_GPS_Init(const YRT_GPS_Config_t *config){
         
         // uydulara henüz kilitlenmemişse saçma sapan veriler okumamak için direkt çıktık
         if (out_data->fix_status == 0) {
-            return YRT_ERROR; 
+            return YRT_ERR; 
         }
 
         // uydu sayısı
