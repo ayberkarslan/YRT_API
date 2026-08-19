@@ -1,11 +1,82 @@
+//YRT_API_H
 /*
 
+                /\
+                ||
+               ====
+               |  |
+               |  |
+               ====
+               XXXX
+               |\/|
+               |/\|
+               |\/|
+               |/\|
+               |\/|
+               |/\|
+              /____\
+              |    |
+              |    |
+             /      \
+            /        \
+           /          \
+          /            \
+         /              \
+         ----------------
+         |--------------|
+         |              |
+         |              |
+         |              |
+         |       _      |
+         |      / \     |
+         |     /___\    |
+         |    /     \   |
+         |     _____    |
+         |     |    \   |
+         |     |____/   |
+         |     |   \    |
+         |    _______   |
+         |       |      |
+         |       |      |
+         |       |      |
+         |       _      |
+         |      / \     |
+         |     /___\    |
+         |    /     \   |
+         |              |
+         |    |\   /|   |
+         |    | \_/ |   |
+         |    |     |   |
+         |              |
+         |              |
+         |              |
+         |      __      |
+        /|      ||      |\
+       / |      ||      | \
+      /  |      ||      |  \
+     /   |      ||      |   \
+-----    |      HH      |    -----
+|   |    |      HH      |    |   |
+|   |    |      HH      |    |   |
+|   |    |      HH      |    |   |
+|   |    |______HH______|    |   |
+--------/       HH       \--------
+
+
 */
+
 
 #ifndef YRT_API_H
 #define YRT_API_H
 
+
 //#include "cmsis_os.h"
+#include <stdint.h>
+
+
+//fonksiyon prototipleri
+uint32_t YRT_Get_Time(void);  //kendisi aşağıda, hata vermesin diye üste alanzi
+
 
 typedef enum {
     YRT_OK = 0,
@@ -21,10 +92,10 @@ typedef enum {
 #define YRT_ENABLED 1
 #define YRT_DISABLED 0
 
-#define YRT_IS_RTOS_ENABLED YRT_DISABLED
-#define YRT_IS_LORA_ENABLED YRT_DISABLED
-#define YRT_IS_IMU_ENABLED YRT_ENABLED
-#define YRT_IS_BARO_ENABLED YRT_ENABLED
+#define YRT_IS_RTOS_ENABLED YRT_ENABLED
+#define YRT_IS_LORA_ENABLED YRT_ENABLED
+#define YRT_IS_IMU_ENABLED YRT_DISABLED
+#define YRT_IS_BARO_ENABLED YRT_DISABLED
 #define YRT_IS_SERIAL_ENABLED YRT_DISABLED
 
 #define YRT_IS_SERIAL_ENABLED YRT_DISABLED
@@ -70,7 +141,7 @@ typedef struct {
     float w;
 } YRT_Vec4;
 
-uint32_t YRT_Get_Time(void);  //kendisi aşağıda, hata vermesin diye üste alanzi
+
 
 
 #if YRT_IMU_BNO055_SELECTED
@@ -342,8 +413,11 @@ void YRT_Delay(uint32_t period);
 #if YRT_IS_CAN_ENABLED
 
 #include "can.h"
+
 #if YRT_IS_RTOS_ENABLED
 #include "cmsis_os.h"
+#include "FreeRTOS.h"
+#include "queue.h"
 #endif
 
 typedef enum {
@@ -362,7 +436,7 @@ typedef struct {
 } YRT_CAN_DEV_t;
 
 #if YRT_IS_RTOS_ENABLED
-extern osMessageQueueId_t canRxQueueHandle;
+extern osMessageQId canRxQueueHandle;
 #endif
 
 /**
