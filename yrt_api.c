@@ -475,15 +475,9 @@ float YRT_CalculateAltitude(float p, float pi, float ti)
 }
 #endif
 
-/* ==========================================================================
- *  Cevre birim katmani — CAN / GPIO / Serial
- *  Not: Hangi CAN, hangi UART, hangi pin sorularinin cevabi burada DEGIL,
- *       BPC_SET.c icinde. Bu katman sadece "nasil" bilir.
- * ========================================================================== */
 
-/**
- * @brief CAN BUS Functions
- */
+
+//CAN BUS
 #if YRT_IS_CAN_ENABLED
 
 static CAN_FilterTypeDef   canFilterConfig;
@@ -492,7 +486,7 @@ static uint32_t            TxMailbox;
 
 YRT_Status_t YRT_CAN_Init(YRT_CAN_DEV_t *can_dev)
 {
-    if (can_dev == NULL || can_dev->hcan == NULL) return YRT_INVALID_PARAM;
+    if (can_dev == NULL || can_dev->hcan == NULL) return YRT_ERROR;
 
     canFilterConfig.FilterActivation = CAN_FILTER_ENABLE;
 	canFilterConfig.FilterBank = 0;
@@ -515,13 +509,73 @@ YRT_Status_t YRT_CAN_Init(YRT_CAN_DEV_t *can_dev)
         return YRT_CAN_ERR;
     }
 
-    /* Bu olmadan HAL_CAN_RxFifo0MsgPendingCallback hic tetiklenmez. */
+    /* bu olmadan HAL_CAN_RxFifo0MsgPendingCallback hic tetiklenmez. */
     if(HAL_CAN_ActivateNotification(can_dev->hcan, CAN_IT_RX_FIFO0_MSG_PENDING) != HAL_OK)
     {
         return YRT_CAN_ERR;
     }
 
     return YRT_OK;
+}
+
+YRT_Status_t YRT_CAN_Send(YRT_CAN_DEV_t *can_dev, uint32_t target_id, uint8_t *data, uint16_t len)
+{
+    if (can_dev == NULL || can_dev->hcan == NULL || data == NULL || len == 0) return YRT_ERROR;
+
+    uint16_t sent_bytes = 0;
+    TxHeader.StdId = target_id;
+    TxHeader.ExtId = 0;
+    TxHeader.IDE = CAN_ID_STD;
+    TxHeader.RTR = CAN_RTR_DATA;
+
+    while (sent_bytes < len) {
+        // en fazla 8 byte aldık 
+        uint8_t dlc = (len - sent_bytes > 8) ? 8 : (uint8_t)(len - sent_bytes);
+        TxHeader.DLC = dlc;
+
+        // mailboxların boşalmasını bekliyor
+       uint32_t timeout = 0;
+            while (HAL_CAN_GetTxMailboxesFreeLevel(can_dev->hcan) == 0) {
+                YRT_Delay(1); // 1 ms bekle ve tekrar kontrol et
+                timeout++;
+                if (timeout > 10) return YRT_TIMEOUT; // kilitlenmeyi çözen satır
+            }
+
+        if (HAL_CAN_AddTxMessage(can_dev->hcan, &TxHeader, &data[sent_bytes], &TxMailbox) != HAL_OK)
+        {
+            return YRT_CAN_ERR;
+        }
+        sent_bytes += dlc;
+    }
+    return YRT_OK;
+}
+
+YRT_Status_t YRT_CAN_Receive(YRT_CAN_DEV_t *can_dev, uint32_t *sender_id, uint8_t *data, uint16_t *len)
+{
+#if YRT_IS_RTOS_ENABLED
+    if (canRxQueueHandle == NULL) return YRT_ERR;
+    CAN_Msg_t msg;
+
+    if (osMessageQueueGet(canRxQueueHandle, &msg, NULL, 0) == osOK) {
+        if (sender_id != NULL) *sender_id = msg.header.StdId;
+        if (len != NULL) *len = msg.header.DLC;
+        if (data != NULL) memcpy(data, msg.data, msg.header.DLC);
+        return YRT_OK;
+    }
+    return YRT_ERR; // Kuyruk boş
+#else
+    // RTOS kapalıysa direkt donanım FIFO'sundan kontrol et
+    uint32_t fifo = (can_dev->fifo_num == YRT_CAN_FIFO0) ? CAN_RX_FIFO0 : CAN_RX_FIFO1;
+    if (HAL_CAN_GetRxFifoFillLevel(can_dev->hcan, fifo) > 0) {
+        CAN_RxHeaderTypeDef rxHeader;
+        if (HAL_CAN_GetRxMessage(can_dev->hcan, fifo, &rxHeader, data) == HAL_OK) {
+            if (sender_id != NULL) *sender_id = rxHeader.StdId;
+            if (len != NULL) *len = rxHeader.DLC;
+            return YRT_OK;
+        }
+    }
+    return YRT_ERR;
+#endif
 }
 
 /**
@@ -553,7 +607,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan){
  */
 YRT_Status_t YRT_GPIO_Init(YRT_GPIO *gpio, GPIO_TypeDef *port, uint16_t pin, YRT_OP_MODE mode)
 {
-    if (gpio == NULL || port == NULL) return YRT_INVALID_PARAM;
+    if (gpio == NULL || port == NULL) return YRT_ERROR;
 
     gpio->port = port;
     gpio->pin = pin;
@@ -612,7 +666,7 @@ YRT_Status_t YRT_Serial_Send(YRT_SERIAL_DEV *dev, uint8_t *data, uint16_t len) {
 
     switch (dev->protocol) {
         case YRT_SERIAL_UART:
-            if (dev->huart == NULL) return YRT_INVALID_PARAM;
+            if (dev->huart == NULL) return YRT_ERROR;
             if (HAL_UART_Transmit(dev->huart, data, len, HAL_MAX_DELAY) != HAL_OK) return YRT_COMM_ERR;
             dev->bytesSent += len;
             break;
@@ -629,7 +683,7 @@ YRT_Status_t YRT_Serial_Send(YRT_SERIAL_DEV *dev, uint8_t *data, uint16_t len) {
         case YRT_SERIAL_CAN:
 #if YRT_IS_CAN_ENABLED
             {
-        if (dev->hcan == NULL) return YRT_INVALID_PARAM;
+        if (dev->hcan == NULL) return YRT_ERROR;
 
         uint16_t sent_bytes = 0;
         TxHeader.StdId = dev->target_id;
@@ -654,7 +708,7 @@ YRT_Status_t YRT_Serial_Send(YRT_SERIAL_DEV *dev, uint8_t *data, uint16_t len) {
             break;
 
         default:
-            return YRT_INVALID_PARAM;
+            return YRT_ERROR;
     }
 
     return YRT_OK;
@@ -672,7 +726,7 @@ YRT_Status_t YRT_Serial_Receive(YRT_SERIAL_DEV *dev, uint8_t *data, uint16_t len
 
     switch (dev->protocol) {
         case YRT_SERIAL_UART:
-            if (dev->huart == NULL) return YRT_INVALID_PARAM;
+            if (dev->huart == NULL) return YRT_ERROR;
             if (HAL_UART_Receive(dev->huart, data, len, HAL_MAX_DELAY) != HAL_OK) return YRT_COMM_ERR;
             dev->bytesReceived += len;
             break;
@@ -700,7 +754,7 @@ YRT_Status_t YRT_Serial_Receive(YRT_SERIAL_DEV *dev, uint8_t *data, uint16_t len
             break;
 
         default:
-            return YRT_INVALID_PARAM;
+            return YRT_ERROR;
     }
 
     return YRT_OK;
